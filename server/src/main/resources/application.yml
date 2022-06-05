@@ -1,0 +1,16 @@
+
+spring:
+  cloud:
+    azure:
+# Properties like spring.cloud.azure.credential.client-id are global properties.
+# Properties like spring.cloud.azure.active-directory.credential.client-id are AAD properties.
+# If AAD properties is not configured, global properties will be used.
+#      credential:
+#        client-id:
+      active-directory:
+        enabled: true
+        credential:
+          client-id: 0640ca50-1722-4f48-9392-b9e2a1f1e0fa
+        session-stateless: true
+
+

@@ -34,36 +34,4 @@ go to `http://localhost:3000`
 
 `http://localhost:8080`
 
-后端主要就是校验的逻辑
-
-```java
-@GetMapping("/api")
-@CrossOrigin(origins = "*")
-public String validate(String token) {
-
-    DecodedJWT jwt = JWT.decode(token);
-
-    String url = "https://login.microsoftonline.com/25c97843-7dfd-4037-9fc8-4c585dd37ea5/discovery/v2.0/keys";
-
-    try {
-        JwkProvider jwkProvider = new UrlJwkProvider(new URL(url));
-        Jwk jwk = jwkProvider.get(jwt.getKeyId());
-        Algorithm algorithm = Algorithm.RSA256((RSAPublicKey) jwk.getPublicKey(), null);
-        algorithm.verify(jwt);
-        return "success";
-    } catch (MalformedURLException e) {
-        e.printStackTrace();
-    } catch (JwkException e) {
-        e.printStackTrace();
-    } catch (SignatureVerificationException e) {
-        e.printStackTrace();
-        return "verify fail";
-    }
-
-    return "fail";
-}
-```
-
-## use
-
-authorizeRequest => apiRequest
+server 的角色是，看到用户 token，校验 token 是否有效，然后判断 token 包含的角色权限信息，确认对 api 是否有有效的访问权。

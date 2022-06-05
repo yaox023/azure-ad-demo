@@ -8,7 +8,7 @@ const clientId = "0640ca50-1722-4f48-9392-b9e2a1f1e0fa";
 const authorizationEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`;
 const tokenEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
 const graphEndpoint = "https://graph.microsoft.com/v1.0/me";
-const apiEndpoint = "http://localhost:8080/api"; // 后端服务接口
+const apiEndpoint = "http://localhost:8080/authorized"; // 后端服务接口
 
 // I generate a example verifier and challenge first
 // should be generate dynamically
@@ -21,134 +21,112 @@ const redirectUri = "http://localhost:3000";
 const state = "123456";
 
 // openid for openid connect
+// 
+// const scope = "profile openid email api://0640ca50-1722-4f48-9392-b9e2a1f1e0fa/app";
 const scope = "user.read profile openid email";
+
+// 重定向到 azure 登陆页面，请求用户登陆
+const authorizeRequest = () => {
+	const params = new URLSearchParams({
+		client_id: clientId,
+		redirect_uri: redirectUri,
+		code_challenge: codeChallenge,
+		code_challenge_method: "S256",
+		response_type: "code",
+		scope,
+		state,
+	});
+	location.href = authorizationEndpoint + "?" + params.toString();
+};
+
+// used to get access/refresh/id token
+const tokenRequest = async (code) => {
+	const params = new URLSearchParams({
+		client_id: clientId,
+		code: code,
+		redirect_uri: redirectUri,
+		code_verifier: codeVerifier,
+		grant_type: "authorization_code",
+		scope,
+	});
+
+	return fetch(tokenEndpoint, {
+		method: "POST",
+		headers: {
+			Accept: "application/json",
+			"content-type": "application/x-www-form-urlencoded",
+		},
+		body: params
+	}).then(res => res.json());
+
+};
+
+
+// 请求后端接口，传入 id token 用作鉴权
+const apiRequest = async (token) => {
+	return fetch(apiEndpoint, {
+		headers: {
+			"Authorization": `Bearer ${token}`
+		}
+	}).then(r => r.text());
+};
+
+
+// use access token to request user information in azure
+const refreshTokenRequest = async (refresh_token) => {
+	const params = new URLSearchParams({
+		client_id: clientId,
+		grant_type: "refresh_token",
+		refresh_token: refreshToken,
+		scope,
+	});
+
+	return fetch(tokenEndpoint, {
+		method: "POST",
+		headers: {
+			Accept: "application/json",
+			"content-type": "application/x-www-form-urlencoded",
+		},
+		body: params
+	}).then(res => res.json());
+};
 
 function App() {
 
-	const [accessToken, setAccessToken] = useState("");
-	const [refreshToken, setRefreshToken] = useState("");
-	const [idToken, setIdToken] = useState("");
-
-	// used to get authorization code
-	const authorizeRequest = () => {
-		const params = new URLSearchParams({
-			client_id: clientId,
-			redirect_uri: redirectUri,
-			code_challenge: codeChallenge,
-			code_challenge_method: "S256",
-			response_type: "code",
-			scope,
-			state,
-		});
-		location.href = authorizationEndpoint + "?" + params.toString();
-	};
+	const [tokens, setTokens] = useState({});
+	const [apiRes, setAPIRes] = useState("");
 
 	// monitor url, if there is code and state parameters and state is right
 	// then run the access request
 	useEffect(() => {
 		const url = new URL(location.href);
-		if (!url.searchParams.has("code")) return;
-		if (!url.searchParams.has("state")) return;
-		if (url.searchParams.get("state") !== state) return;
-		const params = new URLSearchParams({
-			client_id: clientId,
-			code: url.searchParams.get("code"),
-			redirect_uri: redirectUri,
-			code_verifier: codeVerifier,
-			grant_type: "authorization_code",
-			scope,
-		});
+		if (!url.searchParams.has("code") ||
+			!url.searchParams.has("state") ||
+			url.searchParams.get("state") !== state
+		) {
+			authorizeRequest();
+			return;
+		}
 
-		// used to get access/refresh/id token
-		fetch(tokenEndpoint, {
-			method: "POST",
-			headers: {
-				Accept: "application/json",
-				"content-type": "application/x-www-form-urlencoded",
-			},
-			body: params
-		})
-			.then(res => res.json())
-			.then(res => {
-				setAccessToken(res.access_token);
-				setRefreshToken(res.refresh_token);
-				setIdToken(res.id_token);
+		tokenRequest(url.searchParams.get("code"))
+			.then(tokens => {
+				setTokens(tokens);
+				return tokens.id_token;
 			})
-			.catch(e => {
-				console.error(e);
-			});
+			.then(id_token => {
+				return apiRequest(id_token);
+			})
+			.then(res => setAPIRes(res))
+			.catch(e => console.error(e));
+
 	}, []);
 
-	const resourcesRequest = () => {
-		fetch(graphEndpoint, {
-			headers: {
-				"Authorization": `Bearer ${accessToken}`
-			}
-		})
-			.then(res => res.json())
-			.then(res => {
-				console.log(res);
-			});
-	};
-
-	// use access token to request user information in azure
-	const refreshTokenRequest = () => {
-		const params = new URLSearchParams({
-			client_id: clientId,
-			grant_type: "refresh_token",
-			refresh_token: refreshToken,
-			scope,
-		});
-
-		fetch(tokenEndpoint, {
-			method: "POST",
-			headers: {
-				Accept: "application/json",
-				"content-type": "application/x-www-form-urlencoded",
-			},
-			body: params
-		})
-			.then(res => res.json())
-			.then(res => {
-				setAccessToken(res.access_token);
-				setRefreshToken(res.refresh_token);
-				setIdToken(res.id_token);
-			})
-			.catch(e => {
-				console.error(e);
-			});
-	};
-
-	const apiRequest = () => {
-		// demo 演示，直接传 token 给后端
-		fetch(apiEndpoint + "?token=" + idToken)
-			.then(r => r.text())
-			.then(r => {
-				console.log(r);
-			})
-			.catch(e => {
-				console.error(e);
-			});
-	};
-
-	// monitor to see token change
-	useEffect(() => {
-		console.log({ accessToken });
-	}, [accessToken]);
-	useEffect(() => {
-		console.log({ refreshToken });
-	}, [refreshToken]);
-	useEffect(() => {
-		console.log({ idToken });
-	}, [idToken]);
 
 	return (
 		<div className="App">
 			<div>
-				<button onClick={authorizeRequest}>authorizeRequest</button>
-				<button onClick={resourcesRequest}>resourcesRequest</button>
-				<button onClick={refreshTokenRequest}>refreshTokenRequest</button>
-				<button onClick={apiRequest}>api request</button>
+				<pre>{JSON.stringify(tokens, null, 2)}</pre>
+				<div>{apiRes}</div>
 			</div>
 		</div>
 	);
