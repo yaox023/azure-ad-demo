@@ -21,7 +21,8 @@ OIDCの流れを明確に示すため、こちらはSDKをあえて使用せず�
 5. id_tokenをバックエンドを送り、バックエンドはjwtを解析後に、認証を行える
 
 Azure ADのオフィシャルドキュメントに基づき、作成した。
-https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow
+
+doc: https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow
 
 ```
 cd client
