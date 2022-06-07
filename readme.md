@@ -1,4 +1,4 @@
-## azure 配置
+## azure コンフィグレーション
 
 - Azure active directory
 - Create the app registration
@@ -7,20 +7,21 @@ refer: https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-
 
 ## client
 
-spa 这块的逻辑，azure 提供了各个框架的 sdk，可以直接调接口。
+spaの実装に関しては、azureは各フレームワークのSDKを提供しているので、それらのインターフェースを使用すればいい。
 
-为了演示逻辑，这里的代码没有用 sdk，直接用的请求接口的逻辑。
+OIDCの流れを明確に示すため、こちらはSDKをあえて使用せずに、直接にAzureを呼び出している。
 
-注意下面用的是 auth code flow
+本デモは auth_codeフローを使用している。
 
-步骤有如下几个：
-1. 请求 /authorize 接口，重定向到 azure，用户登陆，重定向回来，拿到 code
-2. 请求 /token 接口，拿到 access_token, refresh_token, id_token
-3. 后续可以用 access_token 调 azure grpah api，拿到 azure 资源相关信息
-4. 可以用 refresh_token 再次调 /token 接口，更新 token
-5. 可以用 id_token 发给后端，后端 jwt 解析后做验证
+以下のステップがある：
+1. /authorizeエンドポイントをリクエストし、azureにリダイレクトした後，ユーザはログインできたら、またリダイレクトされ，クライアント側はauth_codeを取得する。
+2. /tokenエンドポイントをリクエストし、access_token, refresh_token, id_tokenを取得する
+3. access_tokenを用いて、azure grpah apiをリクエストし， azureの関連リソースを取得できる
+4. refresh_tokenを用いて、再度 /tokenエンドポイントをアクセスし、tokenを更新する
+5. id_tokenをバックエンドを送り、バックエンドはjwtを解析後に、認証を行える
 
-上面一个操作的接口文档参考：https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow
+Azure ADのオフィシャルドキュメントに基づき、作成した。
+https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow
 
 ```
 cd client
@@ -34,4 +35,4 @@ go to `http://localhost:3000`
 
 `http://localhost:8080`
 
-server 的角色是，看到用户 token，校验 token 是否有效，然后判断 token 包含的角色权限信息，确认对 api 是否有有效的访问权。
+serverのロールは、ユーザのtokenを送られたら、tokenの有効性を検証し、tokenに含まれるロール権限情報を取得できる。また、それを用いて、APIへの認可を行える。
