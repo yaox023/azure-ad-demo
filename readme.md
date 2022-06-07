@@ -3,7 +3,7 @@
 - Azure active directory
 - Create the app registration
 
-refer: https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-spa-app-registration
+Doc: https://docs.microsoft.com/en-us/azure/active-directory/develop/scenario-spa-app-registration
 
 ## client
 
@@ -22,7 +22,7 @@ OIDCの流れを明確に示すため、こちらはSDKをあえて使用せず�
 
 Azure ADのオフィシャルドキュメントに基づき、作成した。
 
-doc: https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow
+Doc: https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-oauth2-auth-code-flow
 
 ```
 cd client
