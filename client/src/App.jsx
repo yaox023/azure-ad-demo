@@ -1,21 +1,24 @@
 import { useEffect, useState } from 'react';
+import "./App.css";
 
 // configured in azure ad portal
 const tenantId = "25c97843-7dfd-4037-9fc8-4c585dd37ea5";
 const clientId = "0640ca50-1722-4f48-9392-b9e2a1f1e0fa";
+const redirectUri = "http://localhost:3000";
 
 // can be found in azure portal
 const authorizationEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/authorize`;
+const logoutEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/logout?post_logout_redirect_uri=${redirectUri}`;
 const tokenEndpoint = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
 const graphEndpoint = "https://graph.microsoft.com/v1.0/me";
-const apiEndpoint = "http://localhost:8080/authorized"; // 后端服务接口
+const publicAPIEndpoint = "http://localhost:8080/public";
+const privateAPIEndpoint = "http://localhost:8080/private";
 
 // I generate a example verifier and challenge first
 // should be generate dynamically
 // refer to this blog to see how to generate them in js: https://www.valentinog.com/blog/challenge/
 const codeVerifier = "ThisIsntRandomButItNeedsToBe43CharactersLong";
 const codeChallenge = "ocYCWfMwcSjWZok91g7EAZsKLdqPI7Nn_qoUWIdHHM4";
-const redirectUri = "http://localhost:3000";
 
 // random string
 const state = "123456";
@@ -25,7 +28,6 @@ const state = "123456";
 // const scope = "profile openid email api://0640ca50-1722-4f48-9392-b9e2a1f1e0fa/app";
 const scope = "user.read profile openid email";
 
-// 重定向到 azure 登陆页面，请求用户登陆
 const authorizeRequest = () => {
 	const params = new URLSearchParams({
 		client_id: clientId,
@@ -37,6 +39,10 @@ const authorizeRequest = () => {
 		state,
 	});
 	location.href = authorizationEndpoint + "?" + params.toString();
+};
+
+const logoutRequest = () => {
+	location.href = logoutEndpoint;
 };
 
 // used to get access/refresh/id token
@@ -57,18 +63,7 @@ const tokenRequest = async (code) => {
 			"content-type": "application/x-www-form-urlencoded",
 		},
 		body: params
-	}).then(res => res.json());
-
-};
-
-
-// 请求后端接口，传入 id token 用作鉴权
-const apiRequest = async (token) => {
-	return fetch(apiEndpoint, {
-		headers: {
-			"Authorization": `Bearer ${token}`
-		}
-	}).then(r => r.text());
+	});
 };
 
 
@@ -93,40 +88,88 @@ const refreshTokenRequest = async (refresh_token) => {
 
 function App() {
 
+	const [isLoggedIn, setIsLoggedIn] = useState(false);
 	const [tokens, setTokens] = useState({});
-	const [apiRes, setAPIRes] = useState("");
+	const [publicAPIResult, setPublicAPIResult] = useState("");
+	const [privateAPIResult, setPrivateAPIResult] = useState("");
 
-	// monitor url, if there is code and state parameters and state is right
-	// then run the access request
+	const handleLoginLogout = async () => {
+		if (isLoggedIn) {
+			logoutRequest();
+		} else {
+			authorizeRequest();
+		}
+	};
+
+	const handlePublicReq = async () => {
+		const res = await fetch(publicAPIEndpoint);
+		const text = await res.text();
+		setPublicAPIResult(text);
+	};
+
+	const handlePrivateReq = async () => {
+		try {
+			if (tokens.id_token) {
+				const res = await fetch(privateAPIEndpoint, {
+					headers: {
+						"Authorization": `Bearer ${tokens.id_token}`
+					}
+				});
+				const text = await res.text();
+				setPrivateAPIResult(text);
+			} else {
+				const res = await fetch(privateAPIEndpoint);
+				if (res.ok) {
+					const text = await res.text();
+					setPrivateAPIResult(text);
+				} else {
+					setPrivateAPIResult(JSON.stringify({ ok: res.ok, status: res.status }));
+				}
+			}
+		} catch (e) {
+			setPrivateAPIResult(String(e));
+		}
+	};
+
 	useEffect(() => {
 		const url = new URL(location.href);
 		if (!url.searchParams.has("code") ||
 			!url.searchParams.has("state") ||
 			url.searchParams.get("state") !== state
 		) {
-			authorizeRequest();
 			return;
 		}
 
 		tokenRequest(url.searchParams.get("code"))
-			.then(tokens => {
-				setTokens(tokens);
-				return tokens.id_token;
+			.then(res => {
+				if (res.ok) {
+					return res.json();
+				} else {
+					throw new Error("request fail");
+				}
 			})
-			.then(id_token => {
-				return apiRequest(id_token);
+			.then(ts => {
+				setTokens(ts);
+				setIsLoggedIn(true);
 			})
-			.then(res => setAPIRes(res))
-			.catch(e => console.error(e));
-
+			.catch(e => {
+				console.error(e);
+			});
 	}, []);
-
 
 	return (
 		<div className="App">
+			<button onClick={handleLoginLogout}>{isLoggedIn ? "Logout" : "Login"}</button>
 			<div>
-				<pre>{JSON.stringify(tokens, null, 2)}</pre>
-				<div>{apiRes}</div>
+				<div>
+					<button onClick={handlePublicReq}>Public API</button>
+					<textarea cols="30" rows="15" value={publicAPIResult} readOnly></textarea>
+				</div>
+				<div>
+					<button onClick={handlePrivateReq}>Private API</button>
+					<textarea cols="30" rows="15" value={privateAPIResult} readOnly></textarea>
+				</div>
+
 			</div>
 		</div>
 	);

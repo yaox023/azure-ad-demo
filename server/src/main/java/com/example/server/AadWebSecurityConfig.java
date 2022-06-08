@@ -18,13 +18,9 @@ public class AadWebSecurityConfig extends WebSecurityConfigurerAdapter {
 
     @Override
     protected void configure(HttpSecurity http) throws Exception {
-
         http.cors().and().authorizeRequests()
-                .antMatchers("/admin/**").hasRole("TaskAdmin")
-                .antMatchers("/", "/index.html", "/public").permitAll()
+                .antMatchers("/public").permitAll()
                 .anyRequest().authenticated();
-
         http.addFilterBefore(aadAuthFilter, UsernamePasswordAuthenticationFilter.class);
-
     }
 }

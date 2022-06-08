@@ -1,0 +1,32 @@
+.App {
+    
+    width: 80%;
+    margin: 24px auto;
+}
+
+.App > button {
+    display: block;
+}
+
+button {
+    margin: 16px auto;
+}
+
+.App > div {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 16px;
+}
+
+.App > div > div {
+    display: grid;
+    grid-template-columns: 1fr;
+    justify-content: center;
+    align-items: center;
+}
+
+textarea {
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
